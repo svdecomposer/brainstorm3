@@ -40,7 +40,8 @@ if isempty(ZipFile)
 end
 % Get database folder
 BrainstormDbDir = bst_get('BrainstormDbDir');
-
+% Define a prefix for a temp folder in the Db directory
+tmpPrefix = '.tmp_folder_for_';
 
 %% ===== CHECK PROTOCOL =====
 % Get protocol name
@@ -55,6 +56,9 @@ while any(strcmpi({GlobalData.DataBase.ProtocolInfo.Comment}, ProtocolName))
 end
 % Build protocol folder
 ProtocolDir = bst_fullfile(BrainstormDbDir, ProtocolName);
+% Build temp protocol folder
+tmpProtocolDir = bst_fullfile(tmpDir,ProtocolName);
+
 % Check if folder already exist
 if file_exist(ProtocolDir)
     bst_error(sprintf(['Folder ''%s'' already exists in database.' 10 ...
@@ -62,24 +66,37 @@ if file_exist(ProtocolDir)
     return;
 end
 
+% Build tmp protocol folder
+tmpProtocolDir = bst_fullfile(BrainstormDbDir,[tmpPrefix ProtocolName]);
+if file_exist(tmpProtocolDir) 
+  file_delete(tmpProtocolDir,1,3); %probably from previous attempt. delete to try again.
+end
+
 %% ===== UNZIP =====
 % Progress bar
 bst_progress('start', 'Load protocol', 'Unzipping file...');
 % Create output folder
-isOk = mkdir(ProtocolDir);
-if ~isOk
-    bst_error(['Could not create folder: ' ProtocolDir], 'Load protocol', 0);
+if ~mkdir(tmpProtocolDir)
+    bst_error(['Could not create folder: ' tmpProtocolDir], 'Load protocol', 0);
     return
 end
+
 % Unzip file
-isOk = org.brainstorm.file.Unpack.unzip(ZipFile, ProtocolDir);
+isOk = org.brainstorm.file.Unpack.unzip(ZipFile, tmpProtocolDir);
 if ~isOk
     bst_error('Could not unzip file.', 'Load protocol', 0);
+    file_delete(tmpProtocolDir,1,3);
     return
+end
+
+if ~movefile(tmpProtocolDir,ProtocolDir,'f')
+  bst_error(['Could not rename temp folder as: ' ProtocolDir], 'Load protocol',0);
+  return
 end
 
 
 %% ===== DETECT FOLDERS =====
+bst_progress('text', 'Parsing protocol info...');
 % Detect anatomy and datasets folders
 subjectFile = file_find(ProtocolDir, 'brainstormsubject*.mat', 3);
 studyFile   = file_find(ProtocolDir, 'brainstormstudy*.mat',   4);

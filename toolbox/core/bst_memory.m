@@ -846,10 +846,15 @@ function LoadRecordingsMatrix(iDS)
                 UseFilterResults = 0;
             end
         end
+        
+        %select only neurophysiological data to filter
+        iChannels = good_channel(GlobalData.DataSet(iDS).Channel, [], {'MEG', 'EEG', 'SEEG', 'ECOG', 'NIRS'});
+        F = DataMat.F(iChannels,:);
+        
         % Apply filters
         if UseFilterData && UseFilterResults
             sfreq = 1./GlobalData.DataSet(iDS).Measures.SamplingRate;
-            DataMat.F = FilterLoadedData(DataMat.F, sfreq);
+            DataMat.F(iChannels,:) = FilterLoadedData(F, sfreq);
             GlobalData.DataSet(iDS).Measures.isFiltered = 1;
         else
             GlobalData.DataSet(iDS).Measures.isFiltered = 0;
